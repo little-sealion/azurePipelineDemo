@@ -1,0 +1,364 @@
+net Playbook
+ABOUTBOOKSMY SUPPORTERSPRIVACY POLICY
+Dotnet Playbook
+ABOUTBOOKSMY SUPPORTERSPRIVACY POLICY
+DEVOPS
+Build, Test and Deploy a REST API with Azure DevOps
+LES JACKSON10TH MAR '192
+Intro
+Use Azure Devops pipelines with Github to continuously integrate and deploy a .Net Core REST API to Microsoft Azure.
+
+What You’ll Learn
+By the end of this article you’ll understand:
+
+What is a CI/CD pipeline?
+What is “Azure DevOps”?
+Alternatives to Azure DevOps, (and Github and Azure!)
+How to connect Github and Azure to Azure DevOps
+How to configure the Azure DevOps Pipelines
+How to continuously integrate and deploy to a production Azure site
+Ingredients
+If you want to follow along with the examples in this tutorial you’ll need the following, (note everything is free unless stated otherwise):
+
+Visual Studio Code
+.Net Core SDK
+Postman (Optional you can just use a web browser)
+Azure Subscription (Free sign up. Mix of free and paid services)
+Azure DevOps Account (Free for individuals)
+What is CI/CD?
+Before we talk about specific technologies, (in this case Azure DevOps), we should take a minute to understand CI/CD concepts in general…
+
+To talk about CI/CD, (don’t worry we’ll come onto what it stands for in a minute), is to talk about a pipeline of work”, or if you prefer another analogy: a production line, where a product, (in this instance working software), is taken from is raw form, (code*), and gradually transformed into working software that’s usable by the end users.
+
+Production Line
+
+Clearly, this process will include a number of steps, most, (if not all), we will want to automate.
+
+It’s essentially about the faster realization of business value and is a central foundational idea of agile software development. (Don’t worry I’m not going to bang that drum too much).
+
+*You could argue, (and in fact I would!), that the business requirements are the starting point of the software “build” process. For the purposes of this article though, we’ll use code as the start point of the journey.
+
+Enough! What IS CI/CD?
+Ok, ok. CI is easy, that stands fro Continuous Integration. CI is the process of taking any code changes from 1 or more developers working on the same piece of software, and merging those changes back into the main code “branch” by building and testing that code. As the name would suggest this process is continuous, triggered usually when developers “check-in” code changes to the code repository.
+
+The whole point of CI is to ensure that the main, (or master), code branch remains healthy throughout the build activity, and that any new changes introduced by the multiple developers working on the code don’t conflict and break the build.
+
+CD can be a little bit more confusing… Why? We’ll you’ll hear people using the both the following terms in reference to CD: Continuous Deployment, and Continuous Delivery.
+
+What’s the difference?
+Well, if you think of Continuous Delivery as an extension of Continuous Integration it’s the process of automating the release process. It ensures that you can deploy software changes frequently and at the press of a button. Continuous Delivery stops just short of automatically pushing changes into production though, that’s where Continuous Deployment comes in…
+
+Continuous deployment goes further than Continuous Delivery, in that code changes will make their way through to production without any human intervention, (assuming there are no failures in the CI/CD pipeline, e.g. failing tests).
+
+Continuous Integration, Continuous Delivery & Continuous Deployment
+
+So which is it?
+Typically when we talk about CI/CD we talk about Continuous Integration & Continuous Delivery, although it can be dependent on the organization. Ultimately the decision to deploy software into production is a business decision, so the idea of Continuous Deployment is still overwhelming for most organizations….
+
+The Pipeline
+Google “CI/CD pipeline” and you will come up with a multitude of examples, I however like this one:
+
+Full CI/CD pipeline stages
+
+You may also see it depicted as an “infinite loop”, which kind of breaks the pipeline concept, but is none the less useful when it comes to understand “DevOps”:
+
+DevOps Infinite Loop
+The DevOps Infinite Loop
+
+Coming back to the whole point of this article, (which if you haven’t forgotten is to detail how to use Azure DevOps), we are going to focus on the following elements of the pipeline:
+
+Focused CI/CD Pipeline
+Pipeline Stages we’ll focus on
+
+What is “Azure DevOps”?
+Azure DevOps is cloud-based collection of tools that allow development teams to build and release software. It was previously called “Visual Studio Online”, and if you are familiar with the on-premise “Team Foundation Server Solution”, it’s basically that, but in the cloud… (an over-simplification – I know!)
+
+For this article we are going to be focusing exclusively on “pipeline” features it has to offer, and leave the other aspects untouched, (for now).
+
+Alternatives
+There are various on-premise and cloud based alternatives: Jenkins is possibly the most “famous” of the on-premise solutions available, but you also have things like:
+
+Bamboo
+Team City
+Werker
+Circle CI
+That list is by no means exhaustive, but for now, we’ll leave these behind and focus on Azure DevOps!
+
+Our API Solution
+I’ve previously written about developing a REST API using ASP.NET Core, so for this article we are going to “scaffold” a template web api project, that while simple, is perfectly decent in proving out the concepts we need to.
+
+Additionally we’re going to create an XUnit Project to contain our unit tests, again these will be trivial, (this is not an article on unit testing), but again will be fully functional and demonstrate the core concept of automated testing in a CI/CD pipeline.
+
+We’ll “wrap” these 2 projects in a “solution”, the folder structure of which is shown below:
+
+Project Directory Structure
+Project Directory Structure
+
+Create Our Solution Components
+Note: it is assumed that you have the .Net Core SDK already installed, (if not refer back the Developing a REST API with ASP.Net Core article for more detail on this and other set up requirements).
+
+Create your main solution directory: SimpleAPI
+Create 2 sub directories in here, named “src” and “test”
+Open a command prompt and change into the “src” directory
+Issue the following command
+dotnet new webapi -n SimpleAPI
+This should create a sub folder, (SimpleAPI) in “src” containing our template API project
+Change into the “test” directory created above and issue the following command:
+dotnet new xunit -n SimpleAPI.Tests
+This should create a sub folder, (SimpleAPI.Tests) in “test” containing our template Test project
+In the command window, change back into the main solution folder, (perform a directory listing to be sure) – you should see:
+Solution Directory Listing
+Note: I’m using the terminal within VSCode that will respond to the “ls” command, the standard Windows Command Prompt will not- you’ll need to use “dir”. (Linux / Max users you’ll be fine though!)
+
+Now issue the following command to create a solution file, (this is not strictly necessary but I like to have one for various reasons)
+dotnet new sln --name SimpleAPI
+This should create a solution file called SimpleAPI.sln
+We now want to associate both our “child” projects to our solution, to do so, issue the following command:
+
+dotnet sln SimpleAPI.sln add src/SimpleAPI/SimpleAPI.csproj test/SimpleAPI.Tests/SimpleAPI.Tests.csproj
+You should see output similar to the following
+
+Added projects to solution file
+
+For more information on the dotnet sln command visit msdn.
+
+Ok one last thing to do to is to place a “reference” to our SimpleAPI project in our SimpleAPI.Tests project, this will enable us to reference the SimpleAPI project and “test” it from our SimpleAPI.Tests project. You can either manually edit the SimpleAPI.Tests.csproj file, or type the following command:
+
+dotnet add test/SimpleAPI.Tests/SimpleAPI.Tests.csproj reference src/SimpleAPI/SimpleAPI.csproj
+Where the 1st project path is the “host” project and the 2nd project is the referenced project, if done successfully you should see something similar to that below:
+
+
+
+You should also check the contents of the SimpleAPI.Tests .csproj file to ensure the reference is there.
+
+SimpleAPI.Tests .csproj file
+You’ll also notice the package references to xunit etc.
+
+You can now build both projects, (ensure you are still in the root solution folder), by issuing:
+
+dotnet build
+Note: This is one of the advantages of using a solution file, (you can build both projects from here). Assuming all is well we have finished our initial projects set up!
+
+Run Our API and Unit Test
+Run Our API
+If you’ve not done so already start VSCode and open the “solution” folder, this will open the solution and the child projects. You can use Visual Studio too, in that case you’d open the solution file.
+
+In a terminal or command window, (I use the integrated terminal in VSCode: Ctrl + ` ), change into the SimpleAPI project folder, (SimpleAPI/src/SimpleAPI), and type:
+
+dotnet run
+This will start the API project, you should see something like:
+
+
+
+To see the api responding, open a web browser, (or use something like Postman), and browse to:
+
+https://localhost:5001/api/values
+Some points to note:
+
+Ensure the address your using matches what is being “listened on”
+The /api/values postfix is calling one of our controller actions in our “ValuesController”
+Again this is not a tutorial on ASP.Net Core APIs, so if that doesn’t make much sense take a look at Developing a ASP.Net Core REST API.
+
+OK, in the terminal window, use Ctrl + C to shutdown the server.
+
+Unit Testing Our API
+Ok, so I want to write 1 simple Unit test to test the response from one of our controller actions. It’s super simple and rudimentary, but will illustrate the core concept of testing in CI/CD pipelines… The use-case I mention is also a valid one.
+
+Again, just as this is not a tutorial in REST APIs, nor is this a tutorial in Unit Testing, so I won’t go into it in depth. However if you’ve never heard of Unit Testing, these are tests that developers themselves write in order to test the low level units or functions of their code.
+
+They are:
+
+Relatively small (or they should be)
+Quick to write
+Cheap
+Are executed first (see pyramid below)
+Abundant
+You may also have heard about the “testing pyramid”, we’ll a picture paints a thousand, words so here you go:
+
+Testing Pyramind
+Image Copyright Marin Fowler
+
+For more information visit Martin Fowlers site.
+
+So, in your terminal, navigate not into our Test Project folder: SimpleAPI/test/SimpleAPI.Tests
+
+And issue the following command:
+
+dotnet test
+You should see something like:
+
+dotnet test
+
+We haven’t even done anything yet, and still a test is passing? Well yes as part of the template project we have a UnitTest1 class with a single shell unit test that doesn’t really test anything, so it passes.
+
+We’ll leave that there for now.
+
+Open the the UnitTest1.cs file in VSCode, and add a new test underneath the existing empty test method, “Test1”:
+
+ValuesController controller = new ValuesController();
+[Fact]
+public void GetReturnsCorrectNumber()
+{
+  var returnValue = controller.Get(1);
+  Assert.Equal("Les Jackson", returnValue.Value);
+}
+You’ll also need to add an additional “using” directive at the top of the file:
+
+using SimpleAPI.Controllers;
+Note this directive would not resolve had we not placed a reference to API project in the SimpleAPI.Tests.csproj file…
+
+The UnitTests1.cs file should look like this now:
+
+UnitTests1.cs
+
+Save the file and let’s execute our 2 tests now:
+
+dotnet test
+This will probably throw up an assembly reference error:
+
+Microsoft.AspNetCore.Mvc.Core error
+
+This can simply be resolved by adding the necessary assembly reference to the SimpleAPI.Tests .csproj file, as shown below:
+
+
+
+Note: After you save the file VSCode may ask to resolve dependencies – of course say yes!
+
+Now run your tests again, (you should know how to do this now), you should see something like:
+
+Unit Test Error
+Yes using my name in the unit test is highly narcissistic!
+
+What we have here is a failing unit test! Can you guess the reason why?
+
+It’s quite simple, our test is calling the Get(int id) method in our controller, (we pass in an arbitrary value of “1” but this could be any integer in this instance and would make no difference). It then “Asserts” that the value returned by the API should be “Les Jackson”, when in fact it’s passing back the value: “value” – hence it fails.
+
+In order to get the test to pass we need to edit our controller method to look like that listed below:
+
+// GET api/values/5
+[HttpGet("{id}")]
+public ActionResult<string> Get(int id)
+{
+  return "Les Jackson";
+}
+Save the file and re-run your tests, you should have success!
+
+Test Success
+
+What you have, (kind of), done here is a form of development called: Test Driven Development, where developers will write the Unit Tests first, to test as yet un-written functionality they have yet to write. As they start to write the functions, the tests start to pass.
+
+(Technically our method did already exit – but you get the point!)
+
+With our API working and our vast suite of unit tests passing, it’s time we placed everything under source control!
+
+Place Under Source Control
+If we look back at the build pipeline components we’re focusing on, the first stage is “code”:
+
+Focused CI/CD Pipeline
+
+Now as well as this referring to the obvious, (basically what we’ve just covered in the last section), it also refers to the code “repository” that developers will submit or “commit” their code to.
+
+In order for the build process to start, it has to fetch the code from somewhere – that somewhere is the code repository!
+
+Source Control (Git & Github)
+Now there are various code repository solutions out there, but by far the most common is Git, (and those based around Git), to such an extent that “source control” and Git are almost synonyms. Think about “vacuum cleaners” and “Hoover”, (or perhaps now Dyson), and you’ll get the picture.
+
+Again, as with REST APIs and Unit Testing before, this is not a tutorial on Git, (there are plenty of those on the internet already!),  so to looking to our friend Wikipedia it describes Git as:
+
+A distributed version-control system for tracking changes in source code during software development. It is designed for coordinating work among programmers, but it can be used to track changes in any set of files.
+
+Think about it as the “central source of truth” in relation to your code base.
+
+While you can use Git in a distributed team environment, there are a number of companies that have taken it further placed “Git in the Cloud”, with such examples as:
+
+Github, (probably the most well recognised – and recently aquired by Microsoft)
+Bitbucket, (from Atlassian – the makers of Jira and Confluence)
+Gitlabs
+We’re actually going to use both Git, (locally on our machine), and Github as part of this tutorial.
+
+The Technology In Context
+Now just before we move onto using Git and Github, I just wanted to say a few things on the technology, specifically the almost infinite choice and configuration options you have.
+
+For this tutorial we’re using the following mix:
+
+Github, Azure DevOps and Azure
+Pipeline Vs Our Technology Mix
+
+Indeed, Azure DevOps actually comes with its own “code repository” feature, (Azure Repos), which means we could do away with Github…
+
+So our mix could look like:
+
+Azure DevOps and Azure
+
+Or if you want to take Microsoft technologies out of the picture:
+
+Gitlabs, circle ci and aws
+
+Going further, you can even break down the Build -> Test -> Release -> Deploy etc. components into specific technologies… I’m not going to do that here.
+
+The takeaway points I wanted to make were:
+
+The relevant sequencing of technologies in our example
+Make sure you understand the importance of the code repository
+Be aware of the almost limitless choice of tech
+Ok, enough theory – let’s set up our repository!
+
+Set Up Your Git Repo
+Again in a terminal / command line in the main solution directory, type:
+
+git --version
+You should see something like:
+
+git --version
+
+If you don’t, and get an error you probably don’t have git installed, (Google “Install git on <insert os here>” and you should be ok).
+
+Assuming you get something similar to the above, (i.e. a version number!), we want to set up our local git repository by typing:
+
+git init
+This should initialize a local git repository in the solution directory that will track the code changes in a hidden folder called: .git
+
+Now type:
+
+git status
+This will show you all the “un-tracked” files in your directory, (basically files that are not under source control), at this stage that is everything:
+
+git status
+
+.gitignore File
+Before we start to track our solution files, (and bring them under source control), there are certain files that you shouldn’t bring under source control, in particular files that are “generated” as the result of a build, primarily as they are surplus to requirements… (and they’re not “source” files’!)
+
+In order to “ignore” these file types you create a file in your “root” solution directory called: .gitignore, (note the period ‘.’ at the beginning). Now this can become quite a personal choice on what you want to include or not, but I have provided an example that you can use, (or ignore altogether – excuse the pun!):
+
+*.swp
+*.*~
+project.lock.json
+.DS_Store
+*.pyc
+
+# Visual Studio Code
+.vscode
+
+# User-specific files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+build/
+bld/
+[Bb]in/
+[Oo]bj/
+msbuild.log
+msbuild.err
+msbuild.wrn
+
+# Visual Studio 2015
+.vs/
